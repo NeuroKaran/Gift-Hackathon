@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     # Google Gemini
     gemini_api_key: str = ""
 
+    # Finnhub (live financial news)
+    finnhub_api_key: str = ""
+
     # CORS
     frontend_url: str = "http://localhost:3000"
 

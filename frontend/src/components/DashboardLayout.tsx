@@ -1,7 +1,11 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
+import NewsAlertPanel, { AlertToast } from "@/components/NewsAlertPanel";
 import { useSettings } from "@/lib/SettingsContext";
+import { fetchNewsAlerts, subscribeToAlertStream } from "@/lib/api";
+import type { NewsAlert } from "@/lib/api";
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
@@ -11,6 +15,43 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children, xp }: DashboardLayoutProps) {
     const { settings } = useSettings();
     const displayXp = xp !== undefined ? xp : settings.xp;
+
+    /* ── Alert state ──────────────────────────────────────────────────── */
+    const [alerts, setAlerts] = useState<NewsAlert[]>([]);
+    const [panelOpen, setPanelOpen] = useState(false);
+    const [toastAlert, setToastAlert] = useState<NewsAlert | null>(null);
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    /* Load initial alerts */
+    useEffect(() => {
+        fetchNewsAlerts()
+            .then((list) => {
+                setAlerts(list);
+                setUnreadCount(list.length);
+            })
+            .catch((err) => console.error("[News] Failed to load alerts:", err));
+    }, []);
+
+    /* SSE stream for live alerts */
+    useEffect(() => {
+        const cleanup = subscribeToAlertStream((newAlert) => {
+            setAlerts((prev) => {
+                // Avoid duplicates
+                if (prev.some((a) => a.id === newAlert.id)) return prev;
+                return [newAlert, ...prev];
+            });
+            setUnreadCount((c) => c + 1);
+            setToastAlert(newAlert);
+        });
+        return cleanup;
+    }, []);
+
+    const handleBellClick = useCallback(() => {
+        setPanelOpen((v) => !v);
+        if (!panelOpen) setUnreadCount(0);     // mark as read when opening
+    }, [panelOpen]);
+
+    const dismissToast = useCallback(() => setToastAlert(null), []);
 
     return (
         <div className="min-h-screen bg-ambient flex">
@@ -36,18 +77,40 @@ export default function DashboardLayout({ children, xp }: DashboardLayoutProps) 
                             />
                         </svg>
                         <input
+                            id="search-scenarios"
+                            name="search-scenarios"
                             type="text"
                             placeholder="Search scenarios, assets and materials"
                             className="search-input"
                         />
                     </div>
                     <div className="flex items-center gap-4">
-                        <button className="relative w-10 h-10 rounded-xl bg-[#f3f0ed] flex items-center justify-center text-[#6b7280] hover:bg-[#ebe7e3] transition-colors">
-                            🔔
-                            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#ef4444] text-white text-[10px] flex items-center justify-center font-bold">
-                                2
-                            </span>
-                        </button>
+                        {/* ── Bell button (toggles alert panel) ─── */}
+                        <div className="relative">
+                            <button
+                                id="alert-bell-button"
+                                onClick={handleBellClick}
+                                className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${panelOpen
+                                        ? "bg-[#6B1D3A]/10 text-[#6B1D3A]"
+                                        : "bg-[#f3f0ed] text-[#6b7280] hover:bg-[#ebe7e3]"
+                                    }`}
+                            >
+                                🔔
+                                {unreadCount > 0 && (
+                                    <span className="alert-bell-badge">
+                                        {unreadCount > 9 ? "9+" : unreadCount}
+                                    </span>
+                                )}
+                            </button>
+
+                            {/* Alert panel (positioned below bell) */}
+                            <NewsAlertPanel
+                                isOpen={panelOpen}
+                                onClose={() => setPanelOpen(false)}
+                                alerts={alerts}
+                            />
+                        </div>
+
                         <div className="flex items-center gap-3 pl-4 border-l border-[rgba(0,0,0,0.06)]">
                             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#6B1D3A] to-[#D4A417] flex items-center justify-center text-white text-sm font-bold">
                                 {settings.name[0]}
@@ -74,7 +137,9 @@ export default function DashboardLayout({ children, xp }: DashboardLayoutProps) 
                     {children}
                 </div>
             </div>
+
+            {/* Toast notifications (top-right, fixed) */}
+            <AlertToast alert={toastAlert} onDismiss={dismissToast} />
         </div>
     );
 }
-

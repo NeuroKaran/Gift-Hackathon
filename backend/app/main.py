@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routes import scenarios, ml, ai
+from app.routes import scenarios, ml, ai, news
 from app.routes import settings as settings_route
 
 cfg = get_settings()
@@ -33,6 +33,7 @@ app.include_router(scenarios.router)
 app.include_router(ml.router)
 app.include_router(ai.router)
 app.include_router(settings_route.router)
+app.include_router(news.router)
 
 
 # ── Health Check ─────────────────────────────────────────────────────────────

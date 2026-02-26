@@ -134,7 +134,7 @@ export default function ScenariosPage() {
                             <p className="text-sm text-[#6b7280] mb-4">{s.description}</p>
                             <div className="flex items-center gap-2">
                                 {s.status === "available" ? (
-                                    <Link href="/"
+                                    <Link href={`/practice-zone/${s.slug}`}
                                         className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-[#6B1D3A] to-[#a855f7] text-center hover:shadow-lg transition-all no-underline">
                                         🎮 Play Now
                                     </Link>

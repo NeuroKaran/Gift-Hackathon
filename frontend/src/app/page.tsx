@@ -1,201 +1,275 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import dynamic from "next/dynamic";
-import DashboardLayout from "@/components/DashboardLayout";
-import NewsTicker from "@/components/NewsTicker";
-import PredictionButtons from "@/components/PredictionButtons";
-import ResultsScreen from "@/components/ResultsScreen";
-import {
-  fetchScenario,
-  fetchChartData,
-  submitPrediction,
-  Scenario,
-  CandlestickBar,
-  PredictionResult,
-} from "@/lib/api";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
 
-// Dynamic import for chart (no SSR — uses canvas)
-const CandlestickChart = dynamic(
-  () => import("@/components/CandlestickChart"),
-  { ssr: false }
-);
-
-type GamePhase = "loading" | "predict" | "revealing" | "results";
-
-const SCENARIO_SLUG = "zero-day-vulnerability";
-
-const streakDays = [
-  { label: "Day 1", active: true },
-  { label: "Day 2", active: true },
-  { label: "Day 3", active: true },
-  { label: "Day 4", active: false },
-  { label: "Day 5", active: false },
-  { label: "Day 6", active: false },
-  { label: "Day 7", active: false },
+/* ── Slide data ─────────────────────────────────────── */
+const slides = [
+  {
+    id: 0,
+    icon: null,        // uses logo
+    title: "Welcome to TradeQuest",
+    subtitle: "Predict. Compete. Conquer.",
+    description:
+      "Step into the AI-powered finance arena where every decision counts. Paper-trade real scenarios and sharpen your instincts.",
+    gradient: "from-[#6B1D3A] via-[#8B2D4A] to-[#D4A417]",
+  },
+  {
+    id: 1,
+    icon: "📈",
+    title: "AI-Powered Challenges",
+    subtitle: "Battle a Real ML Model",
+    description:
+      "Predict whether a stock will go up or down — then watch as our machine-learning engine makes its own call. Beat the AI to earn bonus XP.",
+    gradient: "from-[#22c55e] via-[#16a34a] to-[#2EC4B6]",
+  },
+  {
+    id: 2,
+    icon: "🏆",
+    title: "Climb the Leaderboard",
+    subtitle: "Earn XP & Unlock Badges",
+    description:
+      "Complete scenarios, maintain streaks, and rack up experience points. Rise through the ranks and prove you've got what it takes.",
+    gradient: "from-[#D4A417] via-[#f97316] to-[#ec4899]",
+  },
+  {
+    id: 3,
+    icon: "🚀",
+    title: "Ready to Trade?",
+    subtitle: "Your Journey Starts Now",
+    description:
+      "Create your free account in seconds and enter the arena. No real money needed — just pure skill and strategy.",
+    gradient: "from-[#6366f1] via-[#8b5cf6] to-[#ec4899]",
+  },
 ];
 
-export default function Playground() {
-  const [phase, setPhase] = useState<GamePhase>("loading");
-  const [scenario, setScenario] = useState<Scenario | null>(null);
-  const [bars, setBars] = useState<CandlestickBar[]>([]);
-  const [revealBars, setRevealBars] = useState<CandlestickBar[]>([]);
-  const [result, setResult] = useState<PredictionResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+/* ── Floating particles ────────────────────────────── */
+function Particles() {
+  return (
+    <div className="particles-container">
+      {Array.from({ length: 20 }).map((_, i) => (
+        <motion.div
+          key={i}
+          className="particle"
+          initial={{
+            x: Math.random() * (typeof window !== "undefined" ? window.innerWidth : 1200),
+            y: Math.random() * (typeof window !== "undefined" ? window.innerHeight : 800),
+            opacity: 0,
+          }}
+          animate={{
+            y: [null, Math.random() * -400 - 100],
+            opacity: [0, 0.6, 0],
+          }}
+          transition={{
+            duration: 6 + Math.random() * 6,
+            repeat: Infinity,
+            delay: Math.random() * 4,
+            ease: "easeInOut",
+          }}
+          style={{
+            width: 4 + Math.random() * 8,
+            height: 4 + Math.random() * 8,
+            borderRadius: "50%",
+            background: `hsla(${330 + Math.random() * 60}, 70%, 60%, 0.4)`,
+            position: "absolute",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
-  const loadScenario = useCallback(async () => {
-    try {
-      setPhase("loading");
-      setResult(null);
-      setRevealBars([]);
-      setError(null);
-      const [scenarioData, chartData] = await Promise.all([
-        fetchScenario(SCENARIO_SLUG),
-        fetchChartData(SCENARIO_SLUG, "pre"),
-      ]);
-      setScenario(scenarioData);
-      setBars(chartData.bars);
-      setPhase("predict");
-    } catch (err) {
-      setError("Failed to load scenario. Is the backend running on port 8000?");
-      console.error(err);
-    }
+/* ── Main component ───────────────────────────────── */
+export default function OnboardingPage() {
+  const router = useRouter();
+  const [current, setCurrent] = useState(0);
+  const [direction, setDirection] = useState(1);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resetTimer = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
   }, []);
 
-  useEffect(() => { loadScenario(); }, [loadScenario]);
+  const goTo = useCallback((idx: number) => {
+    setCurrent((prev) => {
+      setDirection(idx > prev ? 1 : -1);
+      return idx;
+    });
+    resetTimer();
+  }, [resetTimer]);
 
-  const handlePredict = async (direction: "UP" | "DOWN") => {
-    if (!scenario) return;
-    setPhase("revealing");
-    try {
-      const predictionResult = await submitPrediction(SCENARIO_SLUG, direction);
-      setResult(predictionResult);
-      setRevealBars(predictionResult.reveal_bars);
-      setTimeout(() => { setPhase("results"); }, 5 * 600 + 800);
-    } catch (err) {
-      setError("Failed to submit prediction. Please try again.");
-      setPhase("predict");
-      console.error(err);
+  const next = useCallback(() => {
+    setCurrent((prev) => {
+      if (prev >= slides.length - 1) return prev;
+      setDirection(1);
+      return prev + 1;
+    });
+  }, []);
+
+  // auto-advance every 5 s
+  useEffect(() => {
+    if (current >= slides.length - 1) {
+      resetTimer();
+      return;
     }
+    timerRef.current = setTimeout(next, 5000);
+    return () => { resetTimer(); };
+  }, [current, next, resetTimer]);
+
+  const handleGetStarted = () => router.push("/auth");
+
+  const slide = slides[current];
+
+  /* ── Framer variants ──────────────────────────────── */
+  const cardVariants = {
+    enter: (d: number) => ({
+      x: d > 0 ? 300 : -300,
+      opacity: 0,
+      scale: 0.92,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+      scale: 1,
+      transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
+    },
+    exit: (d: number) => ({
+      x: d > 0 ? -300 : 300,
+      opacity: 0,
+      scale: 0.92,
+      transition: { duration: 0.35 },
+    }),
   };
 
-  const handlePlayAgain = () => { loadScenario(); };
-
   return (
-    <DashboardLayout xp={result ? result.xp_earned : 0}>
-      {/* Weekly Streaks */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="dash-card px-6 py-4 mb-6"
+    <div className="onboarding-root">
+      {/* Animated gradient background */}
+      <div className={`onboarding-bg bg-gradient-to-br ${slide.gradient}`} />
+      <div className="onboarding-noise" />
+
+      <Particles />
+
+      {/* Skip button */}
+      <motion.button
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.6 }}
+        onClick={handleGetStarted}
+        className="onboarding-skip"
       >
-        <div className="flex items-center gap-2 mb-3">
-          <h3 className="text-sm font-semibold text-[#1a1a2e]">Weekly Streaks</h3>
-          <span className="text-[#9ca3af] text-xs cursor-help">ⓘ</span>
-        </div>
-        <div className="flex items-center gap-6">
-          {streakDays.map((day, i) => (
-            <div key={i} className={`streak-day ${day.active ? "" : "inactive"}`}>
-              <span className="flame">🔥</span>
-              <span>{day.label}</span>
-            </div>
-          ))}
-        </div>
-      </motion.div>
+        Skip →
+      </motion.button>
 
-      {/* Error state */}
-      {error && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-          className="dash-card p-6 text-center mb-6 border-l-4 border-l-[#ef4444]">
-          <p className="text-[#ef4444] mb-3 font-medium">{error}</p>
-          <button onClick={loadScenario}
-            className="px-4 py-2 rounded-xl bg-[#ef4444] text-white hover:bg-[#dc2626] transition-colors cursor-pointer font-medium text-sm">
-            Retry
-          </button>
-        </motion.div>
-      )}
-
-      {/* Loading */}
-      {phase === "loading" && !error && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-          className="flex flex-col items-center justify-center py-32 gap-4">
-          <div className="w-12 h-12 border-3 border-[#f3f0ed] border-t-[#6B1D3A] rounded-full animate-spin" />
-          <p className="text-sm text-[#9ca3af] font-medium">Loading scenario...</p>
-        </motion.div>
-      )}
-
-      {/* Game content */}
-      {phase !== "loading" && scenario && !error && (
-        <AnimatePresence mode="wait">
-          <motion.div key="game" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
-            {/* Scenario title bar */}
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }} className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="px-3 py-1 rounded-lg bg-[#6B1D3A]/10 text-[#6B1D3A] text-[11px] font-semibold uppercase tracking-wider">
-                    {scenario.difficulty}
-                  </span>
-                  <span className="px-3 py-1 rounded-lg bg-[#fef3c7] text-[#92400e] text-[11px] font-semibold">
-                    +{scenario.xp_reward} XP
-                  </span>
-                </div>
-                <h2 className="text-xl font-bold text-[#1a1a2e]">{scenario.title}</h2>
-              </div>
-              <div className="text-right">
-                <div className="text-[11px] text-[#9ca3af] mb-0.5 font-medium">Trading</div>
-                <div className="font-mono text-sm font-semibold text-[#1a1a2e]">{scenario.asset_name}</div>
-              </div>
+      {/* Center content */}
+      <div className="onboarding-center">
+        <AnimatePresence mode="wait" custom={direction}>
+          <motion.div
+            key={slide.id}
+            custom={direction}
+            variants={cardVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            className="onboarding-card"
+          >
+            {/* Icon / Logo */}
+            <motion.div
+              initial={{ scale: 0, rotate: -20 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 200, damping: 14, delay: 0.15 }}
+              className="onboarding-icon"
+            >
+              {slide.icon ? (
+                <span className="text-6xl">{slide.icon}</span>
+              ) : (
+                <Image
+                  src="/logo.png"
+                  alt="TradeQuest"
+                  width={88}
+                  height={88}
+                  className="rounded-2xl shadow-lg"
+                  priority
+                />
+              )}
             </motion.div>
 
-            {/* Chart */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-              <CandlestickChart bars={bars}
-                revealBars={phase === "revealing" || phase === "results" ? revealBars : undefined}
-                animateReveal={phase === "revealing"} />
-            </motion.div>
+            {/* Title */}
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="onboarding-title"
+            >
+              {slide.title}
+            </motion.h1>
 
-            {/* Chart info */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}
-              className="flex items-center justify-between text-xs text-[#9ca3af] font-mono px-1">
-              <span>📅 30-Day Historical Chart</span>
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#22c55e]" /> Bullish
-                <span className="w-2 h-2 rounded-full bg-[#ef4444] ml-2" /> Bearish
-              </span>
-            </motion.div>
+            {/* Subtitle */}
+            <motion.p
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="onboarding-subtitle"
+            >
+              {slide.subtitle}
+            </motion.p>
 
-            {/* News ticker */}
-            <NewsTicker headline={scenario.news_headline} body={scenario.news_body} assetName={scenario.asset_name} />
+            {/* Description */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="onboarding-desc"
+            >
+              {slide.description}
+            </motion.p>
 
-            {/* Prediction buttons */}
-            {(phase === "predict" || phase === "revealing") && (
-              <div className="py-4">
-                <PredictionButtons onPredict={handlePredict} disabled={phase === "revealing"} />
-              </div>
+            {/* CTA on last slide */}
+            {current === slides.length - 1 && (
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={handleGetStarted}
+                className="onboarding-cta"
+              >
+                <span>Get Started</span>
+                <span className="ml-2">→</span>
+              </motion.button>
             )}
 
-            {/* Revealing */}
-            {phase === "revealing" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-4">
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-5 h-5 border-2 border-[#f3f0ed] border-t-[#6B1D3A] rounded-full animate-spin" />
-                  <span className="text-sm text-[#6b7280] font-medium">Fast-forwarding 5 days...</span>
-                </div>
-              </motion.div>
+            {/* Next button on other slides */}
+            {current < slides.length - 1 && (
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={next}
+                className="onboarding-next"
+              >
+                Next
+              </motion.button>
             )}
           </motion.div>
         </AnimatePresence>
-      )}
 
-      {/* Results overlay */}
-      {result && (
-        <ResultsScreen show={phase === "results"} userPrediction={result.user_prediction}
-          mlPrediction={result.ml_prediction} actualOutcome={result.actual_outcome}
-          isUserCorrect={result.is_user_correct} isMlCorrect={result.is_ml_correct}
-          xpEarned={result.xp_earned} explanation={result.ai_explanation} onPlayAgain={handlePlayAgain} />
-      )}
-    </DashboardLayout>
+        {/* Dot indicators */}
+        <div className="onboarding-dots">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => goTo(i)}
+              className={`onboarding-dot ${i === current ? "active" : ""}`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

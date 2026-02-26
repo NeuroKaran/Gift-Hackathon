@@ -11,7 +11,7 @@ interface SidebarProps {
 }
 
 const tradingLinks = [
-    { label: "Dashboard", icon: "📊", href: "/" },
+    { label: "Playground", icon: "📊", href: "/playground" },
     { label: "Scenarios", icon: "🎯", href: "/scenarios" },
     { label: "History", icon: "📜", href: "/history" },
 ];
@@ -35,7 +35,7 @@ export default function Sidebar({ xp }: SidebarProps) {
             <Link
                 key={link.label}
                 href={link.href}
-                className={`sidebar-link ${pathname === link.href ? "active" : ""}`}
+                className={`sidebar-link ${pathname === link.href || (link.href === "/playground" && pathname === "/playground") ? "active" : ""}`}
             >
                 <span className="text-base">{link.icon}</span>
                 <span>{link.label}</span>
@@ -50,7 +50,7 @@ export default function Sidebar({ xp }: SidebarProps) {
             className="sidebar"
         >
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-3 px-2 mb-6 no-underline">
+            <Link href="/playground" className="flex items-center gap-3 px-2 mb-6 no-underline">
                 <Image
                     src="/logo.png"
                     alt="TradeQuest Logo"

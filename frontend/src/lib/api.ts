@@ -153,3 +153,49 @@ export async function deleteAccount(): Promise<UserSettings> {
     return res.json();
 }
 
+// ── News Intelligence ─────────────────────────────────────────────────────
+
+export interface NewsAlert {
+    id: string;
+    severity: "critical" | "high" | "medium";
+    headline: string;
+    impact_summary: string;
+    affected_sectors: string[];
+    recommended_action: string;
+    asset_name: string;
+    source: string;         // publisher name (e.g. "Reuters")
+    url: string;            // link to original article
+    image_url?: string;     // article thumbnail
+    timestamp: string;
+}
+
+export async function fetchNewsAlerts(): Promise<NewsAlert[]> {
+    const res = await fetch(`${API_URL}/api/news/alerts`);
+    if (!res.ok) throw new Error("Failed to fetch news alerts");
+    const data = await res.json();
+    return data.alerts;
+}
+
+/**
+ * Open an SSE connection to /api/news/alerts/stream.
+ * Returns a cleanup function. Calls `onAlert` for each new event.
+ */
+export function subscribeToAlertStream(onAlert: (alert: NewsAlert) => void): () => void {
+    const es = new EventSource(`${API_URL}/api/news/alerts/stream`);
+
+    es.onmessage = (event) => {
+        try {
+            const alert: NewsAlert = JSON.parse(event.data);
+            onAlert(alert);
+        } catch {
+            // ignore parse errors
+        }
+    };
+
+    es.onerror = () => {
+        // EventSource auto-reconnects; nothing to do
+    };
+
+    return () => es.close();
+}
+

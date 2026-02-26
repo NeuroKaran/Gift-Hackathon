@@ -68,6 +68,25 @@ export default function SettingsPage() {
 
     return (
         <DashboardLayout>
+            {/* Success Toast */}
+            <AnimatePresence>
+                {saved && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -40, x: 0 }}
+                        animate={{ opacity: 1, y: 0, x: 0 }}
+                        exit={{ opacity: 0, y: -40 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 24 }}
+                        className="toast-container"
+                    >
+                        <div className="toast">
+                            <div className="toast-icon">✓</div>
+                            Settings saved successfully!
+                            <div className="toast-bar" />
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
                 <h1 className="text-2xl font-bold text-[#1a1a2e] mb-1">Settings</h1>
                 <p className="text-sm text-[#6b7280] mb-6">Manage your account and preferences</p>
