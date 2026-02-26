@@ -1,0 +1,10 @@
+{
+  "name": "Karan",
+  "email": "karan@example.com",
+  "notifications": true,
+  "soundEffects": true,
+  "difficulty": "intermediate",
+  "xp": 850,
+  "level": 1,
+  "levelTitle": "Rookie Trader"
+}
